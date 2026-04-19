@@ -122,20 +122,22 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           {/* Logo Section */}
           <div className={`pt-10 pb-8 px-6 flex flex-col items-center gap-4 transition-all duration-300 ${isSidebarCollapsed ? 'px-2' : ''}`}>
             <div className="relative group w-full flex justify-center">
-              {organization?.logo_url ? (
-                <div className={`p-3 bg-white/[0.02] rounded-2xl border border-white/[0.05] shadow-inner backdrop-blur-md transition-all ${isSidebarCollapsed ? 'p-1' : ''}`}>
-                  <img
-                    src={organization.logo_url}
-                    alt="Logo"
-                    className={`object-contain filter drop-shadow-2xl transition-all duration-500 group-hover:scale-105 ${isSidebarCollapsed ? 'w-8 h-8' : 'max-w-[140px] h-16'}`}
-                  />
-                </div>
-              ) : (
-                <div className={`flex items-center gap-3 bg-primary-500/10 rounded-2xl border border-primary-500/20 transition-all ${isSidebarCollapsed ? 'p-2' : 'p-4'}`}>
-                  <ShieldCheck className="w-8 h-8 text-primary-400" />
-                  {!isSidebarCollapsed && <span className="text-xl font-bold text-white tracking-tight">AdminPulse</span>}
-                </div>
-              )}
+              <div className="transition-all">
+                {organization?.logo_url ? (
+                  <div className={`p-3 bg-white/[0.02] rounded-2xl border border-white/[0.05] shadow-inner backdrop-blur-md transition-all ${isSidebarCollapsed ? 'p-1' : ''}`}>
+                    <img
+                      src={organization.logo_url}
+                      alt="Logo"
+                      className={`object-contain filter drop-shadow-2xl transition-all duration-500 group-hover:scale-105 ${isSidebarCollapsed ? 'w-8 h-8' : 'max-w-[140px] h-16'}`}
+                    />
+                  </div>
+                ) : (
+                  <div className={`flex items-center gap-3 bg-primary-500/10 rounded-2xl border border-primary-500/20 transition-all ${isSidebarCollapsed ? 'p-2' : 'p-4'}`}>
+                    <ShieldCheck className="w-8 h-8 text-primary-400" />
+                    {!isSidebarCollapsed && <span className="text-xl font-bold text-white tracking-tight">AdminPulse</span>}
+                  </div>
+                )}
+              </div>
             </div>
             {!isSidebarCollapsed && organization?.name && (
               <div className="flex flex-col items-center animate-in fade-in duration-500">
@@ -199,11 +201,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <div className={`flex items-center ${isSidebarCollapsed ? 'mb-0' : 'mb-5'}`}>
                 <div className="relative">
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white shadow-lg overflow-hidden border border-white/10">
-                    {profile?.avatar_url ? (
-                      <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                    ) : (
-                      profile?.full_name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()
-                    )}
+                    <span className="w-full h-full flex items-center justify-center">
+                      {profile?.avatar_url
+                        ? <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                        : <span>{profile?.full_name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}</span>
+                      }
+                    </span>
                   </div>
                   <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-[#0d1325] rounded-full"></div>
                 </div>

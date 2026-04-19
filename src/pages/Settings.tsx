@@ -44,13 +44,12 @@ export const Settings: React.FC = () => {
                         <div className="flex flex-col items-center gap-6">
                             <div className="relative">
                                 <div className="w-32 h-32 rounded-[2.5rem] bg-slate-900 border-2 border-white/[0.05] overflow-hidden flex items-center justify-center shadow-inner group-hover:border-primary-500/50 transition-all duration-500">
-                                    {avatarUrl ? (
-                                        <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover transition-transform duration-700 hover:scale-110" />
-                                    ) : (
-                                        <span className="text-5xl font-black text-slate-700 uppercase">
-                                            {user?.email?.charAt(0)}
-                                        </span>
-                                    )}
+                                    <span className="w-full h-full flex items-center justify-center">
+                                        {avatarUrl
+                                            ? <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover transition-transform duration-700 hover:scale-110" />
+                                            : <span className="text-5xl font-black text-slate-700 uppercase">{user?.email?.charAt(0)}</span>
+                                        }
+                                    </span>
                                 </div>
                                 <label className="absolute -bottom-2 -right-2 p-3 bg-primary-500 text-white rounded-2xl shadow-[0_10px_20px_rgba(99,102,241,0.4)] cursor-pointer hover:bg-primary-600 hover:scale-110 transition-all duration-300 active:scale-95">
                                     <Camera size={20} />
@@ -112,11 +111,12 @@ export const Settings: React.FC = () => {
                         <div className="flex flex-col items-center gap-6">
                             <div className="relative">
                                 <div className="w-32 h-32 rounded-[2.5rem] bg-slate-900 border-2 border-white/[0.05] overflow-hidden flex items-center justify-center shadow-inner group-hover:border-amber-500/50 transition-all duration-500 p-4">
-                                    {logoUrl ? (
-                                        <img src={logoUrl} alt="Logo" className="w-full h-full object-contain transition-transform duration-700 hover:scale-110" />
-                                    ) : (
-                                        <Building2 className="w-16 h-16 text-slate-700" />
-                                    )}
+                                    <span className="w-full h-full flex items-center justify-center">
+                                        {logoUrl
+                                            ? <img src={logoUrl} alt="Logo" className="w-full h-full object-contain transition-transform duration-700 hover:scale-110" />
+                                            : <span className="flex items-center justify-center"><Building2 className="w-16 h-16 text-slate-700" /></span>
+                                        }
+                                    </span>
                                 </div>
                                 <label className="absolute -bottom-2 -right-2 p-3 bg-amber-500 text-white rounded-2xl shadow-[0_10px_20px_rgba(245,158,11,0.4)] cursor-pointer hover:bg-amber-600 hover:scale-110 transition-all duration-300 active:scale-95">
                                     <Camera size={20} />
