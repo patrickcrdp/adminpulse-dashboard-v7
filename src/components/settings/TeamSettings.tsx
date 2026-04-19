@@ -23,18 +23,33 @@ export const TeamSettings: React.FC = () => {
     const fetchMembers = async () => {
         if (!organization) return;
         try {
+            // Query simples sem join (evita erro 400 se a FK profiles não existir)
             const { data, error } = await supabase
                 .from('organization_members')
-                .select(`
-                    id,
-                    user_id,
-                    role,
-                    profile:profiles(full_name, email)
-                `)
+                .select('id, user_id, role')
                 .eq('organization_id', organization.id);
             
-            if (!error && data) {
-                setMembers(data as any);
+            if (error) {
+                console.error('Erro ao buscar membros:', error);
+                setLoading(false);
+                return;
+            }
+
+            if (data && data.length > 0) {
+                // Busca os profiles separadamente para cada membro
+                const memberIds = data.map(m => m.user_id);
+                const { data: profiles } = await supabase
+                    .from('profiles')
+                    .select('id, full_name, email, avatar_url')
+                    .in('id', memberIds);
+
+                const enrichedMembers = data.map(member => ({
+                    ...member,
+                    profile: profiles?.find(p => p.id === member.user_id) || { full_name: '', email: '' }
+                }));
+                setMembers(enrichedMembers as any);
+            } else {
+                setMembers([]);
             }
         } catch (err) {
             console.error('Erro ao buscar membros', err);
