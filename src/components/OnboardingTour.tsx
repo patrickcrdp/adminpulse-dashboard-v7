@@ -10,19 +10,27 @@ export const OnboardingTour: React.FC = () => {
     const { run, steps, stopTour } = useTour();
     const [delayedRun, setDelayedRun] = React.useState(false);
 
-    // Proteção de estabilidade: O Tour espera 1 segundo após o 'run' ficar true
-    // para garantir que os componentes pesados (gráficos/tabelas) já existam no DOM
+    // Proteção de estabilidade Master: O Tour espera o Dashboard existir fisicamente no DOM
     React.useEffect(() => {
         let timer: any;
         if (run) {
-            timer = setTimeout(() => {
-                setDelayedRun(true);
-            }, 1000);
+            // Tenta verificar se o elemento alvo inicial existe
+            const checkElement = () => {
+                const target = document.getElementById('kpi-section');
+                if (target) {
+                    setDelayedRun(true);
+                } else {
+                    // Tenta novamente em 500ms
+                    timer = setTimeout(checkElement, 500);
+                }
+            };
+            checkElement();
         } else {
             setDelayedRun(false);
         }
         return () => clearTimeout(timer);
     }, [run]);
+
 
     const handleJoyrideCallback = async (data: CallBackProps) => {
         const { status } = data;
