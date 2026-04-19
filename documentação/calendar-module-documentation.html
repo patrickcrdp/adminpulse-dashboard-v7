@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentação Técnica - Módulo Calendário SaaS</title>
+    <style>
+        :root {
+            --brand-600: #7c3aed;
+            --brand-700: #6d28d9;
+            --gray-900: #111827;
+            --gray-600: #4b5563;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            line-height: 1.6;
+            color: var(--gray-900);
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: #f9fafb;
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: var(--gray-900);
+        }
+
+        h1 {
+            border-bottom: 2px solid var(--brand-600);
+            padding-bottom: 10px;
+            margin-bottom: 40px;
+        }
+
+        .section {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #edf2f7;
+        }
+
+        code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
+        pre {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+
+        .grid-diag {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .node {
+            border: 2px solid var(--brand-600);
+            padding: 15px;
+            border-radius: 8px;
+            background: #f5f3ff;
+            min-width: 150px;
+            text-align: center;
+        }
+
+        .arrow {
+            display: flex;
+            align-items: center;
+            font-size: 24px;
+            color: var(--gray-600);
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+
+        .tag-supabase {
+            background: #06b6d4;
+            color: white;
+        }
+
+        .tag-react {
+            background: #61dafb;
+            color: #1c2c4c;
+        }
+
+        .tag-tenant {
+            background: #10b981;
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Módulo Calendário SaaS - Documentação Técnica</h1>
+
+    <div class="section">
+        <h2>1. Visão Geral</h2>
+        <p>O módulo de calendário foi desenvolvido para gerenciar atividades multitenant integradas diretamente à tabela
+            <code>activities</code> do Supabase. Ele oferece visualizações flexíveis e um CRUD completo com isolamento
+            de dados por organização.</p>
+        <div>
+            <span class="tag tag-supabase">Supabase Auth/DB</span>
+            <span class="tag tag-react">React Hook Architecture</span>
+            <span class="tag tag-tenant">Multi-tenant (RLS Ready)</span>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>2. Estrutura de Pastas</h2>
+        <pre>/src/modules/calendar
+├── /components
+│   ├── CalendarView.tsx    (Container Principal)
+│   ├── CalendarHeader.tsx  (Topo e Navegação)
+│   ├── EventModal.tsx      (CRUD e Formulário)
+│   ├── EventCard.tsx       (Visualização do Item)
+│   └── ViewSwitcher.tsx    (Troca de Modos)
+├── /hooks
+│   └── useCalendarEvents.ts (Lógica de Estado e API)
+├── /services
+│   ├── calendar.service.ts  (Operações Supabase)
+│   └── googleCalendar.service.ts (Mock para Futuro)
+├── /types
+│   └── calendar.types.ts  (Interfaces e Enums)
+└── /utils
+    └── calendar.utils.ts  (Helpers de Datas e Estilos)</pre>
+    </div>
+
+    <div class="section">
+        <h2>3. Fluxo de Dados e Multi-tenant</h2>
+        <p>O sistema garante o isolamento de dados em todas as camadas:</p>
+        <ul>
+            <li><strong>Service:</strong> Todas as queries (Select, Insert, Update, Delete) incluem a cláusula
+                <code>.eq('organization_id', organizationId)</code>.</li>
+            <li><strong>Hook:</strong> Utiliza o <code>AuthContext</code> para injetar automaticamente o ID da
+                organização ativa em todas as chamadas.</li>
+            <li><strong>Interface:</strong> Os eventos são filtrados preventivamente por data e organização.</li>
+        </ul>
+        <div class="grid-diag">
+            <div class="node">AuthContext (OrgId)</div>
+            <div class="arrow">→</div>
+            <div class="node">useCalendarEvents</div>
+            <div class="arrow">→</div>
+            <div class="node">Supabase Filter</div>
+        </div>
+        <h3>Funcionalidades Principais</h3>
+        <ul>
+            <li>Multi-tenant: Filtro automático por <code>organization_id</code> via row-level security e filtros de
+                aplicação.</li>
+            <li>Visualização Tripla: Alternância fluida entre visões Mensal, Semanal e Diária.</li>
+            <li>Design Premium: Estética moderna com sombras suaves, bordas arredondadas (32px) e animações de entrada.
+            </li>
+            <li>Gestão de Eventos: Modal interativo com botões visuais para seleção de tipo de atividade (Chamada,
+                WhatsApp, Reunião, Nota).</li>
+            <li>Integração de Leads: Associação opcional de atividades a leads existentes no sistema.</li>
+        </ul>
+
+        <h3>Visualizações</h3>
+        <p>O módulo suporta três modos principais de visualização:</p>
+        <div class="code-block">
+            Mês: Grade clássica 7x5 para visão geral de longo prazo.<br>
+            Semana: Colunas verticais para planejamento detalhado da semana atual.<br>
+            Dia: Foco total nas atividades do dia selecionado.
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>4. Integração Google Calendar (Roteiro)</h2>
+        <p>A estrutura está preparada no arquivo <code>googleCalendar.service.ts</code>. Para ativar:</p>
+        <ol>
+            <li>Configurar projeto no Google Cloud Console e obter ClientID/API Key.</li>
+            <li>Implementar o fluxo OAuth2 no <code>connectGoogleCalendar</code>.</li>
+            <li>Mapear os campos da Tabela <code>activities</code> para o recurso <code>Event</code> do Google API no
+                helper <code>syncEventToGoogle</code>.</li>
+            <li>Adicionar um campo <code>google_event_id</code> na tabela para manter o rastreamento.</li>
+        </ol>
+    </div>
+
+    <div class="section">
+        <h2>5. Boas Práticas e Expansão</h2>
+        <ul>
+            <li><strong>Realtime:</strong> Pode ser adicionado usando
+                <code>supabase.channel('activities').on(...)</code> dentro do hook.</li>
+            <li><strong>Drag & Drop:</strong> A estrutura do <code>EventCard</code> e <code>renderMonthView</code> está
+                preparada para bibliotecas como <code>dnd-kit</code> ou <code>react-beautiful-dnd</code>.</li>
+            <li><strong>Performance:</strong> O carregamento é otimizado por mês, reduzindo o tráfego de dados.</li>
+        </ul>
+    </div>
+</body>
+
+</html>
