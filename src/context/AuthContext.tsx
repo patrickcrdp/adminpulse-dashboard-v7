@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../supabaseClient';
 import { Organization, UserProfile } from '../types';
@@ -24,6 +24,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [userRole, setUserRole] = useState<'admin' | 'member' | null>(null);
   const [loading, setLoading] = useState(true);
+  const isHealingRef = useRef(false);
+  const isInitializedRef = useRef(false);
 
   const fetchProfile = async (userId: string) => {
     try {
@@ -59,9 +61,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         setOrganization(orgData as Organization);
       } else {
+        // Guard: impede execução duplicada do Self-Healing
+        if (isHealingRef.current) {
+          console.log('[Self-Healing] Já em execução, ignorando chamada duplicada.');
+          return;
+        }
+        isHealingRef.current = true;
         console.warn('Usuário órfão detectado. Criando organização padrão (Self-Healing)...');
-        // Auto-heal: Create a default organization for orphaned users
         const { data: newOrg, error: orgError } = await processAutoHealing(userId);
+        isHealingRef.current = false;
         if (newOrg) {
            setOrganization(newOrg as Organization);
            setUserRole('admin');
@@ -80,11 +88,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Gera o ID localmente para evitar que o Supabase bloqueie a visualização do ID (Devido à política de RLS de select)
       const newOrgId = crypto.randomUUID();
       const orgName = 'Meu Workspace';
+      // Gera um slug único baseado no timestamp para evitar violação de NOT NULL
+      const orgSlug = `workspace-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
-      // 1. Cria a Empresa injetando o ID e não pede retorno (Para burlar bloqueio de RLS)
+      // 1. Cria a Empresa injetando o ID, nome e slug (obrigatório na tabela)
       const { error: orgError } = await supabase
          .from('organizations')
-         .insert([{ id: newOrgId, name: orgName }]);
+         .insert([{ id: newOrgId, name: orgName, slug: orgSlug }]);
          
       if (orgError) {
          console.error("Autohealing Org Error:", orgError);
@@ -106,13 +116,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    // Initialize Auth
+    // Initialize Auth (com guard contra execução dupla do getSession + onAuthStateChange)
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
         console.error('Erro na sessão inicial:', error);
         setLoading(false);
         return;
       }
+      isInitializedRef.current = true;
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -127,6 +138,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      // Ignora o primeiro disparo se getSession já processou (evita Self-Healing duplicado)
+      if (!isInitializedRef.current) return;
+      
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
