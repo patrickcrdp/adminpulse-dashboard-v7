@@ -21,15 +21,16 @@ export const Settings: React.FC = () => {
                 <div className="h-1 w-20 bg-primary-500 rounded-full mt-2"></div>
             </div>
 
-            {(success || error) && (
-                <div className={`p-5 rounded-2xl flex items-center gap-4 border shadow-2xl backdrop-blur-xl animate-in zoom-in-95 duration-300 ${success ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/5 border-rose-500/20 text-rose-400'
-                    }`}>
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${success ? 'bg-emerald-500/20' : 'bg-rose-500/20'}`}>
-                        {success ? <CheckCircle2 size={24} /> : <AlertCircle size={24} />}
-                    </div>
-                    <span className="text-base font-semibold">{success || error}</span>
+            <div className={`p-5 rounded-2xl flex items-center gap-4 border shadow-2xl backdrop-blur-xl transition-all duration-300 ${
+                (success || error)
+                    ? (success ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400 opacity-100' : 'bg-rose-500/5 border-rose-500/20 text-rose-400 opacity-100')
+                    : 'opacity-0 pointer-events-none h-0 p-0 border-transparent overflow-hidden'
+                }`}>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${success ? 'bg-emerald-500/20' : 'bg-rose-500/20'}`}>
+                    {success ? <CheckCircle2 size={24} /> : <AlertCircle size={24} />}
                 </div>
-            )}
+                <span className="text-base font-semibold">{success || error || '\u00A0'}</span>
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                 {/* Profile Card */}
@@ -43,13 +44,12 @@ export const Settings: React.FC = () => {
                     <div className="p-10 space-y-10">
                         <div className="flex flex-col items-center gap-6">
                             <div className="relative">
-                                <div className="w-32 h-32 rounded-[2.5rem] bg-slate-900 border-2 border-white/[0.05] overflow-hidden flex items-center justify-center shadow-inner group-hover:border-primary-500/50 transition-all duration-500">
-                                    <span className="w-full h-full flex items-center justify-center">
-                                        {avatarUrl
-                                            ? <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover transition-transform duration-700 hover:scale-110" />
-                                            : <span className="text-5xl font-black text-slate-700 uppercase">{user?.email?.charAt(0)}</span>
-                                        }
-                                    </span>
+                                <div key={avatarUrl ? 'avatar-img' : 'avatar-placeholder'} className="w-32 h-32 rounded-[2.5rem] bg-slate-900 border-2 border-white/[0.05] overflow-hidden flex items-center justify-center shadow-inner group-hover:border-primary-500/50 transition-all duration-500">
+                                    {avatarUrl ? (
+                                        <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-5xl font-black text-slate-700 uppercase">{user?.email?.charAt(0)}</span>
+                                    )}
                                 </div>
                                 <label className="absolute -bottom-2 -right-2 p-3 bg-primary-500 text-white rounded-2xl shadow-[0_10px_20px_rgba(99,102,241,0.4)] cursor-pointer hover:bg-primary-600 hover:scale-110 transition-all duration-300 active:scale-95">
                                     <Camera size={20} />
@@ -93,7 +93,7 @@ export const Settings: React.FC = () => {
                                 className="w-full bg-primary-500 hover:bg-primary-600 disabled:opacity-50 text-white font-bold py-4 px-8 rounded-2xl transition-all flex items-center justify-center gap-3 group shadow-[0_15px_30px_rgba(99,102,241,0.3)] hover:shadow-[0_20px_40px_rgba(99,102,241,0.4)] active:scale-95"
                             >
                                 {loading ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} className="group-hover:scale-110 transition-transform" />}
-                                Salvar Perfil
+                                <span>Salvar Perfil</span>
                             </button>
                         </form>
                     </div>
@@ -110,13 +110,12 @@ export const Settings: React.FC = () => {
                     <div className="p-10 space-y-10">
                         <div className="flex flex-col items-center gap-6">
                             <div className="relative">
-                                <div className="w-32 h-32 rounded-[2.5rem] bg-slate-900 border-2 border-white/[0.05] overflow-hidden flex items-center justify-center shadow-inner group-hover:border-amber-500/50 transition-all duration-500 p-4">
-                                    <span className="w-full h-full flex items-center justify-center">
-                                        {logoUrl
-                                            ? <img src={logoUrl} alt="Logo" className="w-full h-full object-contain transition-transform duration-700 hover:scale-110" />
-                                            : <span className="flex items-center justify-center"><Building2 className="w-16 h-16 text-slate-700" /></span>
-                                        }
-                                    </span>
+                                <div key={logoUrl ? 'logo-img' : 'logo-placeholder'} className="w-32 h-32 rounded-[2.5rem] bg-slate-900 border-2 border-white/[0.05] overflow-hidden flex items-center justify-center shadow-inner group-hover:border-amber-500/50 transition-all duration-500 p-4">
+                                    {logoUrl ? (
+                                        <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                                    ) : (
+                                        <Building2 className="w-16 h-16 text-slate-700" />
+                                    )}
                                 </div>
                                 <label className="absolute -bottom-2 -right-2 p-3 bg-amber-500 text-white rounded-2xl shadow-[0_10px_20px_rgba(245,158,11,0.4)] cursor-pointer hover:bg-amber-600 hover:scale-110 transition-all duration-300 active:scale-95">
                                     <Camera size={20} />
@@ -164,7 +163,7 @@ export const Settings: React.FC = () => {
                                 className="w-full bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-bold py-4 px-8 rounded-2xl transition-all flex items-center justify-center gap-3 group shadow-[0_15px_30px_rgba(245,158,11,0.3)] hover:shadow-[0_20px_40px_rgba(245,158,11,0.4)] active:scale-95"
                             >
                                 {loading ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} className="group-hover:scale-110 transition-transform" />}
-                                Salvar Empresa
+                                <span>Salvar Empresa</span>
                             </button>
                         </form>
                     </div>

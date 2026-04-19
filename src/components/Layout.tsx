@@ -200,13 +200,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className={`rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-sm transition-all ${isSidebarCollapsed ? 'p-2 flex flex-col items-center gap-4' : 'p-4'}`}>
               <div className={`flex items-center ${isSidebarCollapsed ? 'mb-0' : 'mb-5'}`}>
                 <div className="relative">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white shadow-lg overflow-hidden border border-white/10">
-                    <span className="w-full h-full flex items-center justify-center">
-                      {profile?.avatar_url
-                        ? <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                        : <span>{profile?.full_name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}</span>
-                      }
-                    </span>
+                  <div key={profile?.avatar_url ? 'sidebar-avatar' : 'sidebar-initial'} className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white shadow-lg overflow-hidden border border-white/10">
+                    {profile?.avatar_url ? (
+                      <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <span>{profile?.full_name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}</span>
+                    )}
                   </div>
                   <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-[#0d1325] rounded-full"></div>
                 </div>
