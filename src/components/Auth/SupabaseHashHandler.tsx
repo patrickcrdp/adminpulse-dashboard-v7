@@ -53,17 +53,16 @@ export const AppHashHandler: React.FC<{ children: React.ReactNode }> = ({ childr
         }
     }, []);
 
-    return (
-        <div className="min-h-screen bg-dark-bg relative">
-            {!isReady && (
-                <div className="fixed inset-0 z-[9999] bg-dark-bg flex items-center justify-center text-white">
-                    <div className="flex flex-col items-center gap-4">
-                        <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
-                        <p className="text-slate-400 text-sm">Processando login seguro...</p>
-                    </div>
+    if (!isReady) {
+        return (
+            <div className="min-h-screen bg-dark-bg flex items-center justify-center text-white">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-slate-400 text-sm">Processando login seguro...</p>
                 </div>
-            )}
-            {children}
-        </div>
-    );
+            </div>
+        );
+    }
+
+    return <>{children}</>;
 };
