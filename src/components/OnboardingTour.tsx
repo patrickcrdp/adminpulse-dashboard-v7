@@ -8,37 +8,27 @@ import { useTour } from '../context/TourContext';
 export const OnboardingTour: React.FC = () => {
     const { user } = useAuth();
     const { run, steps, stopTour } = useTour();
-    const [delayedRun, setDelayedRun] = React.useState(false);
-
-    // Proteção de estabilidade Master: O Tour espera o Dashboard existir fisicamente no DOM
-    React.useEffect(() => {
-        let timer: any;
-        if (run) {
-            // Tenta verificar se o elemento alvo inicial existe
-            const checkElement = () => {
-                const target = document.getElementById('kpi-section');
-                if (target) {
-                    setDelayedRun(true);
-                } else {
-                    // Tenta novamente em 500ms
-                    timer = setTimeout(checkElement, 500);
-                }
-            };
-            checkElement();
-        } else {
-            setDelayedRun(false);
-        }
-        return () => clearTimeout(timer);
-    }, [run]);
-
 
     const handleJoyrideCallback = async (data: CallBackProps) => {
         const { status } = data;
         const finishedStatuses: string[] = [STATUS.FINISHED, STATUS.SKIPPED];
 
         if (finishedStatuses.includes(status)) {
-            setDelayedRun(false);
             stopTour();
+            if (user && status === STATUS.FINISHED) {
+                try {
+                    // Update user profile to mark onboarding as completed IF it's the main dashboard tour
+                    // For now, we can just log or implement more complex logic if needed
+                    /* 
+                    const { error } = await supabase
+                        .from('profiles')
+                        .update({ onboarding_completed: true })
+                        .eq('id', user.id);
+                    */
+                } catch (err) {
+                    console.error('Unexpected error updating onboarding:', err);
+                }
+            }
         }
     };
 
@@ -73,7 +63,7 @@ export const OnboardingTour: React.FC = () => {
     return (
         <Joyride
             steps={steps}
-            run={delayedRun}
+            run={run}
             continuous
             showProgress
             showSkipButton
