@@ -21,7 +21,7 @@ const Settings = lazyRetry(() => import('./pages/Settings').then(module => ({ de
 
 // Loading Component
 const PageLoader = () => (
-  <div className="min-h-screen bg-dark-bg flex items-center justify-center">
+  <div className="fixed inset-0 z-[9999] bg-dark-bg/50 backdrop-blur-sm flex items-center justify-center">
     <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
   </div>
 );
