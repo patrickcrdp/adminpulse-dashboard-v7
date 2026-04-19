@@ -12,35 +12,39 @@ export const AppHashHandler: React.FC<{ children: React.ReactNode }> = ({ childr
     const [isReady, setIsReady] = React.useState(false);
 
     React.useEffect(() => {
-        // Usa o hash global original, e não o atual (que o Supabase já pode ter apagado)
         const hash = initialHashAtLoad;
+        console.log('[SupabaseHashHandler] Fragmento detectado:', hash ? 'Sim' : 'Não');
 
-        // Se a URL contiver o token e for do tipo invite ou recovery...
-        if (hash.includes('access_token') && (hash.includes('type=recovery') || hash.includes('type=invite'))) {
-            // WE MUST WAIT FOR SUPABASE TO CONSUME THE TOKEN FIRST!
-            // If we change the hash immediately, Supabase's createClient will never see it 
-            // and the user won't actually be logged in. 
+        // Se a URL contiver o token (OAuth, Signup, Recovery ou Invite)
+        if (hash.includes('access_token')) {
+            console.log('[SupabaseHashHandler] 🛡️ Interceptando token de autenticação...');
             const checkHash = setInterval(() => {
+                // Espera o Supabase consumir o token globalmente
                 if (!window.location.hash.includes('access_token')) {
                     clearInterval(checkHash);
+                    console.log('[SupabaseHashHandler] ✅ Token consumido. Limpando URL...');
 
-                    // Now that Supabase has consumed the token and logged the user in,
-                    // we can safely redirect to the Reset Password page.
-                    window.location.hash = '/reset-password';
-                    setTimeout(() => setIsReady(true), 100);
+                    // Se for recuperação de senha, vai para a página de troca
+                    if (hash.includes('type=recovery')) {
+                        window.location.hash = '/reset-password';
+                    } else {
+                        // Fluxo normal (Login/Signup/Google): vai para a Home
+                        window.location.hash = '/';
+                    }
+                    
+                    setTimeout(() => setIsReady(true), 200);
                 }
-            }, 50);
+            }, 60);
 
-            // Timeout safety (2 seconds maximum block)
+            // Timeout de segurança
             setTimeout(() => {
                 clearInterval(checkHash);
-                setIsReady(true);
-            }, 2000);
+                if (!isReady) setIsReady(true);
+            }, 4000);
         } else {
-            // Normal flow, nothing to intercept
             setIsReady(true);
         }
-    }, []);
+    }, [isReady]);
 
     if (!isReady) {
         return <div className="min-h-screen bg-dark-bg flex items-center justify-center text-white">Processando login seguro...</div>;
