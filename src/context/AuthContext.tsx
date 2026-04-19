@@ -120,10 +120,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const loadUserData = async (userId: string) => {
       console.log('[AuthContext] Executing loadUserData for:', userId);
       try {
-        await Promise.all([
+        const fetchPromise = Promise.all([
           fetchProfile(userId),
           fetchUserOrganization(userId)
         ]);
+
+        // Timeout robusto de 4 segundos exclusivo para as requisições do DB
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("Timeout: As consultas ao banco do Supabase excederam 4 segundos.")), 4000)
+        );
+
+        await Promise.race([fetchPromise, timeoutPromise]);
         console.log('[AuthContext] loadUserData complete. Setting loading=false.');
       } catch (err) {
         console.error('[AuthContext] Error in loadUserData:', err);
@@ -187,14 +194,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    // 3. Timeout Safety robusto (desbloqueia se o Supabase morrer)
+    // 3. Timeout Safety robusto complementar (desbloqueia se o Supabase morrer sumariamente)
     const timeoutId = setTimeout(() => {
-        if (mounted && !isInitializedRef.current) {
-            console.warn('[System] Deadlock detectado no Supabase. Forçando inicialização...');
-            isInitializedRef.current = true;
-            setLoading(false);
+        if (mounted) {
+            setLoading(prev => {
+                if (prev) {
+                    console.warn('[System] Timeout global disparado! Tela destravada de forma forçada.');
+                }
+                return false; // Sempre limpa o loading após 6s
+            });
         }
-    }, 5000);
+    }, 6000);
 
     return () => {
         mounted = false;
