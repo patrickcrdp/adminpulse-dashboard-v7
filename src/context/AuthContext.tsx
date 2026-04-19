@@ -115,55 +115,91 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let mounted = true;
+    console.log('[AuthContext] Mounting AuthProvider...');
 
     const loadUserData = async (userId: string) => {
-      await Promise.all([
-        fetchProfile(userId),
-        fetchUserOrganization(userId)
-      ]);
-      if (mounted) setLoading(false);
+      console.log('[AuthContext] Executing loadUserData for:', userId);
+      try {
+        await Promise.all([
+          fetchProfile(userId),
+          fetchUserOrganization(userId)
+        ]);
+        console.log('[AuthContext] loadUserData complete. Setting loading=false.');
+      } catch (err) {
+        console.error('[AuthContext] Error in loadUserData:', err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
     };
 
-    // Initialize Auth (com guard contra execução dupla do getSession + onAuthStateChange)
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
+    const processSession = (session: Session | null, source: string) => {
       if (!mounted) return;
-      if (error) {
-        console.error('Erro na sessão inicial:', error);
-        setLoading(false);
-        return;
-      }
+      console.log(`[AuthContext] Processing session from ${source}. User:`, session?.user?.id);
+      
       isInitializedRef.current = true;
       setSession(session);
       setUser(session?.user ?? null);
+      
       if (session?.user) {
         loadUserData(session.user.id);
       } else {
+        console.log('[AuthContext] No user found. Setting loading=false.');
         setLoading(false);
+      }
+    };
+
+    // 1. Tenta pegar a sessão inicial
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      console.log('[AuthContext] getSession resolved. Error?', error);
+      if (error) {
+        console.error('Erro na sessão inicial:', error);
+        if (mounted) setLoading(false);
+        return;
+      }
+      // Se onAuthStateChange já inicializou, não fazemos nada aqui
+      if (!isInitializedRef.current) {
+        processSession(session, 'getSession');
       }
     }).catch((err) => {
       console.error('Falha crítica ao obter sessão:', err);
       if (mounted) setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    // 2. Escuta mudanças de estado (isso frequentemente resolve ANTES do getSession no OAuth)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[AuthContext] onAuthStateChange event:', event, 'User:', session?.user?.id);
       if (!mounted) return;
-      // Ignora o primeiro disparo se getSession já processou (evita Self-Healing duplicado)
-      if (!isInitializedRef.current) return;
       
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadUserData(session.user.id);
+      if (!isInitializedRef.current) {
+        // Inicializa através do listener se ele responder mais rápido que o getSession
+        processSession(session, 'onAuthStateChange');
       } else {
-        setProfile(null);
-        setOrganization(null);
-        setLoading(false);
+        // Atualizações normais pós-inicialização
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          loadUserData(session.user.id);
+        } else {
+          setProfile(null);
+          setOrganization(null);
+          setLoading(false);
+        }
       }
     });
+
+    // 3. Timeout Safety robusto (desbloqueia se o Supabase morrer)
+    const timeoutId = setTimeout(() => {
+        if (mounted && !isInitializedRef.current) {
+            console.warn('[System] Deadlock detectado no Supabase. Forçando inicialização...');
+            isInitializedRef.current = true;
+            setLoading(false);
+        }
+    }, 5000);
 
     return () => {
         mounted = false;
         subscription.unsubscribe();
+        clearTimeout(timeoutId);
     };
   }, []);
 
