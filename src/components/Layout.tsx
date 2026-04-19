@@ -37,20 +37,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   console.log('[Layout] Rendering layout. loading=', loading, 'user_id=', user?.id);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-dark-bg flex items-center justify-center text-white">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-slate-400 text-sm">Carregando Aplicação...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
+  // Redirect para login APENAS se não está carregando e não há usuário
+  if (!loading && !user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
+
+  // NOTA CRÍTICA: NÃO fazemos early-return para loading=true.
+  // Retornar um DOM tree diferente (spinner) e depois trocar pelo layout completo
+  // causa o erro fatal 'insertBefore' no React 19 production mode.
+  // Em vez disso, renderizamos SEMPRE o mesmo layout e mostramos overlay de loading.
 
   const navGroups = [
     {
@@ -93,7 +88,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-dark-bg flex font-sans text-slate-200">
+    <div className="min-h-screen bg-dark-bg flex font-sans text-slate-200 relative">
+      {/* Loading Overlay — SEMPRE no mesmo DOM tree que o layout */}
+      {loading && (
+        <div className="fixed inset-0 bg-dark-bg z-[9999] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-slate-400 text-sm">Carregando Aplicação...</p>
+          </div>
+        </div>
+      )}
       {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div
@@ -204,7 +208,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     {profile?.avatar_url ? (
                       <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
                     ) : (
-                      <span>{profile?.full_name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}</span>
+                      <span>{profile?.full_name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase()}</span>
                     )}
                   </div>
                   <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-[#0d1325] rounded-full"></div>
