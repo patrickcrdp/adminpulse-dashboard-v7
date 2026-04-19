@@ -79,8 +79,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('Error fetching organization:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -116,8 +114,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    let mounted = true;
+
+    const loadUserData = async (userId: string) => {
+      await Promise.all([
+        fetchProfile(userId),
+        fetchUserOrganization(userId)
+      ]);
+      if (mounted) setLoading(false);
+    };
+
     // Initialize Auth (com guard contra execução dupla do getSession + onAuthStateChange)
     supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (!mounted) return;
       if (error) {
         console.error('Erro na sessão inicial:', error);
         setLoading(false);
@@ -127,25 +136,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user.id);
-        fetchUserOrganization(session.user.id);
+        loadUserData(session.user.id);
       } else {
         setLoading(false);
       }
     }).catch((err) => {
       console.error('Falha crítica ao obter sessão:', err);
-      setLoading(false);
+      if (mounted) setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
       // Ignora o primeiro disparo se getSession já processou (evita Self-Healing duplicado)
       if (!isInitializedRef.current) return;
       
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user.id);
-        fetchUserOrganization(session.user.id);
+        loadUserData(session.user.id);
       } else {
         setProfile(null);
         setOrganization(null);
@@ -153,16 +161,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    const timeoutId = setTimeout(() => {
-        if (loading) {
-            console.warn('[System] Forçando saída de tela de carregamento (Timeout Safety).');
-            setLoading(false);
-        }
-    }, 4000);
-
     return () => {
+        mounted = false;
         subscription.unsubscribe();
-        clearTimeout(timeoutId);
     };
   }, []);
 

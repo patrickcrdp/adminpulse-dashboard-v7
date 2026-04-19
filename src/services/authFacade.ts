@@ -32,7 +32,7 @@ export class AuthFacade {
 
   static async loginWithOAuth(provider: 'google' | 'linkedin', origin: string) {
     const options: any = {
-      redirectTo: `${origin}/dashboard`,
+      redirectTo: `${origin}/#/`,
     };
 
     if (provider === 'google') {
