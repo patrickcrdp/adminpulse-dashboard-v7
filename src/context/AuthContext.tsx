@@ -109,6 +109,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
          return { error: memberError };
       }
 
+      // 2.5 Cria estágios padrões de Pipeline para evitar bug da tela vazia/azul na Pipeline
+      try {
+        await supabase.from('pipeline_stages').insert([
+            { organization_id: newOrgId, name: 'Novo Lead', color: 'border-blue-500/50', order_index: 0, is_system: true },
+            { organization_id: newOrgId, name: 'Em Contato', color: 'border-amber-500/50', order_index: 1, is_system: false },
+            { organization_id: newOrgId, name: 'Qualificado', color: 'border-emerald-500/50', order_index: 2, is_system: true },
+            { organization_id: newOrgId, name: 'Proposta Enviada', color: 'border-purple-500/50', order_index: 3, is_system: false }
+        ]);
+      } catch (stageErr) {
+        console.error("Autohealing Stages Error:", stageErr);
+      }
+
       // 3. Monta o objeto sintético para engatar na tela sem precisar baixar do banco imediatamente
       return { data: { id: newOrgId, name: orgName } };
   };

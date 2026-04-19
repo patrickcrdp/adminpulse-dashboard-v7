@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { DashboardFacade } from '../services/dashboardFacade';
 import { DashboardStats, ChartData, Insight, Activity, Lead } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 const generateMockVisitors = (leadsCount: number) => {
   const conversionRate = 0.03 + (Math.random() * 0.02);
@@ -30,10 +31,13 @@ export const useDashboardData = () => {
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('30d');
   const [currentInsightIndex, setCurrentInsightIndex] = useState(0);
+  const { organization } = useAuth(); // Importar do authContext
 
   useEffect(() => {
-    fetchDashboardData();
-  }, [timeRange]);
+    if (organization?.id) {
+       fetchDashboardData();
+    }
+  }, [timeRange, organization?.id]);
 
   useEffect(() => {
     if (insights.length > 0) {

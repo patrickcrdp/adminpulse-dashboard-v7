@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Lead } from '../types';
 import { LeadsFacade } from '../services/leadsFacade';
+import { useAuth } from '../context/AuthContext';
 
 export const useLeadsData = () => {
     const [leads, setLeads] = useState<Lead[]>([]);
@@ -11,23 +12,26 @@ export const useLeadsData = () => {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
-
+    const { organization } = useAuth();
+    
     const fetchLeads = async () => {
+        if (!organization?.id) return;
         setLoading(true);
         try {
             const data = await LeadsFacade.fetchLeads();
             setLeads(data);
         } catch (error) {
             console.error('Error fetching leads:', error);
-            alert('Falha ao carregar leads');
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchLeads();
-    }, []);
+        if (organization?.id) {
+            fetchLeads();
+        }
+    }, [organization?.id]);
 
     const handleDelete = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
