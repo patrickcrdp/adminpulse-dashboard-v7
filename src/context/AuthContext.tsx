@@ -120,22 +120,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const loadUserData = async (userId: string) => {
       console.log('[AuthContext] Executing loadUserData for:', userId);
       try {
-        const fetchPromise = Promise.all([
+        await Promise.all([
           fetchProfile(userId),
           fetchUserOrganization(userId)
         ]);
-
-        // Timeout robusto de 4 segundos exclusivo para as requisições do DB
-        const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error("Timeout: As consultas ao banco do Supabase excederam 4 segundos.")), 4000)
-        );
-
-        await Promise.race([fetchPromise, timeoutPromise]);
-        console.log('[AuthContext] loadUserData complete. Setting loading=false.');
+        console.log('[AuthContext] Background data fetch complete.');
       } catch (err) {
-        console.error('[AuthContext] Error in loadUserData:', err);
-      } finally {
-        if (mounted) setLoading(false);
+        console.error('[AuthContext] Error in background load:', err);
       }
     };
 
@@ -147,11 +138,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       
+      // SUPER OTIMIZAÇÃO: A tela é liberada IMEDIATAMENTE após receber a Sessão do Google,
+      // sem esperar as chamadas pesadas ao DB. Os dados fluem de forma assíncrona.
+      setLoading(false);
+      
       if (session?.user) {
         loadUserData(session.user.id);
       } else {
-        console.log('[AuthContext] No user found. Setting loading=false.');
-        setLoading(false);
+        console.log('[AuthContext] No user found.');
       }
     };
 
