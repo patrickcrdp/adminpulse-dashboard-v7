@@ -107,12 +107,12 @@ export class SettingsFacade {
   static async updateProfile(userId: string, fullName: string, avatarUrl: string) {
     const { error } = await supabase
       .from('profiles')
-      .update({
+      .upsert({
+        id: userId,
         full_name: fullName,
         avatar_url: avatarUrl,
         updated_at: new Date().toISOString(),
-      })
-      .eq('id', userId);
+      });
 
     if (error) throw error;
   }
