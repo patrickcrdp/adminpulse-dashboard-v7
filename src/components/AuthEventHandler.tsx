@@ -52,7 +52,8 @@ export const AuthEventHandler: React.FC = () => {
                         } else {
                             console.warn('[AuthEventHandler] Usuário sem organização vinculada.');
                         }
-                    } catch (err) {
+                    } catch (err: any) {
+                        if (err?.name === 'AbortError') return;
                         console.error('[AuthEventHandler] Erro ao verificar integração:', err);
                     }
                 }

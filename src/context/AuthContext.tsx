@@ -38,7 +38,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data) {
         setProfile(data as UserProfile);
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === 'AbortError') return;
       console.error('Error fetching profile:', error);
     }
   };
@@ -77,7 +78,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
            console.error('Falha no Self-Healing:', orgError);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === 'AbortError') return;
       console.error('Error fetching organization:', error);
     }
   };
@@ -137,7 +139,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           fetchUserOrganization(userId)
         ]);
         console.log('[AuthContext] Background data fetch complete.');
-      } catch (err) {
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return;
         console.error('[AuthContext] Error in background load:', err);
       }
     };
@@ -163,8 +166,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // 1. Tenta pegar a sessão inicial
     supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (!mounted) return;
       console.log('[AuthContext] getSession resolved. Error?', error);
       if (error) {
+        // Silenciar AbortError — é causado pelo React 18 StrictMode (mount/unmount/remount)
+        if ((error as any)?.name === 'AbortError' || error?.message?.includes('AbortError')) {
+          console.debug('[AuthContext] getSession abortado (esperado em dev/StrictMode).');
+          return;
+        }
         console.error('Erro na sessão inicial:', error);
         if (mounted) setLoading(false);
         return;
@@ -173,7 +182,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!isInitializedRef.current) {
         processSession(session, 'getSession');
       }
-    }).catch((err) => {
+    }).catch((err: any) => {
+      if (!mounted) return;
+      if (err?.name === 'AbortError') {
+        console.debug('[AuthContext] getSession abortado (cleanup/StrictMode).');
+        return;
+      }
       console.error('Falha crítica ao obter sessão:', err);
       if (mounted) setLoading(false);
     });
