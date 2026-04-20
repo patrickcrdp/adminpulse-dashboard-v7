@@ -129,10 +129,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let mounted = true;
-    isInitializedRef.current = false; // RESET no remount do StrictMode
-    console.log('[AuthContext] Mounting AuthProvider...');
+    let authTimeout: NodeJS.Timeout;
+
+    console.log('[AuthContext] Inicializando Provedor de Autenticação...');
 
     const loadUserData = async (userId: string) => {
+      if (!mounted) return;
       try {
         await Promise.all([
           fetchProfile(userId),
@@ -140,76 +142,84 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ]);
       } catch (err: any) {
         if (err?.name === 'AbortError') return;
-        console.error('[AuthContext] Error in background load:', err);
+        console.error('[AuthContext] Erro ao carregar dados complementares:', err);
       }
     };
 
-    const processSession = (session: Session | null, source: string) => {
+    // Função de limpeza de estado
+    const clearState = () => {
+      setSession(null);
+      setUser(null);
+      setProfile(null);
+      setOrganization(null);
+      setUserRole(null);
+    };
+
+    // 1. Escuta mudanças de estado (Esta é a fonte mais confiável de eventos)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
-      
+      console.log(`[AuthContext] Evento Supabase: ${event} | User: ${session?.user?.id || 'nenhum'}`);
+
+      // Marca como inicializado assim que recebermos qualquer evento ou sessão (mesmo nula)
       isInitializedRef.current = true;
+      
       setSession(session);
       setUser(session?.user ?? null);
-      setLoading(false);
       
       if (session?.user) {
-        loadUserData(session.user.id);
+        await loadUserData(session.user.id);
+      } else {
+        clearState();
       }
-    };
 
-    // 1. Tenta pegar a sessão inicial
+      // IMPORTANTE: Só liberamos o loading após termos tentado carregar os dados
+      setLoading(false);
+    });
+
+    // 2. Backup: Tenta pegar a sessão inicial via getSession caso o listener demore
     supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (!mounted) return;
+      if (!mounted || isInitializedRef.current) return;
+      
       if (error) {
-        if ((error as any)?.name === 'AbortError' || error?.message?.includes('AbortError') || error?.message?.includes('signal is aborted')) {
-          return; // Silenciar - é do StrictMode
-        }
-        console.error('Erro na sessão inicial:', error);
-        if (mounted) setLoading(false);
+        if (error.name !== 'AbortError') console.error('[AuthContext] Erro getSession:', error);
+        setLoading(false);
         return;
       }
-      if (!isInitializedRef.current) {
-        processSession(session, 'getSession');
-      }
-    }).catch((err: any) => {
-      if (!mounted) return;
-      if (err?.name === 'AbortError' || err?.message?.includes('signal is aborted')) return;
-      console.error('Falha crítica ao obter sessão:', err);
-      if (mounted) setLoading(false);
-    });
 
-    // 2. Escuta mudanças de estado
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!mounted) return;
-      
-      if (!isInitializedRef.current) {
-        processSession(session, 'onAuthStateChange');
-      } else {
-        // Atualizações pós-inicialização
+      if (session) {
+        console.log('[AuthContext] Sessão recuperada via getSession');
         setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false); // SEMPRE liberar loading aqui também
-        if (session?.user) {
-          loadUserData(session.user.id);
-        } else {
-          setProfile(null);
-          setOrganization(null);
-        }
+        setUser(session.user);
+        loadUserData(session.user.id).finally(() => {
+          if (mounted) {
+             isInitializedRef.current = true;
+             setLoading(false);
+          }
+        });
+      } else {
+         // Se não há sessão no getSession, não liberamos o loading ainda. 
+         // Esperamos o onAuthStateChange disparar o INITIAL_SESSION ou o timeout.
+         console.log('[AuthContext] getSession retornou vazio, aguardando INITIAL_SESSION...');
       }
+    }).catch(err => {
+      if (err?.name !== 'AbortError') console.error('[AuthContext] Falha catch getSession:', err);
+      if (mounted && !isInitializedRef.current) setLoading(false);
     });
 
-    // 3. Timeout Safety (10s - margem generosa para conexões lentas)
-    const timeoutId = setTimeout(() => {
-        if (mounted) {
-            setLoading(false);
-        }
-    }, 10000);
+    // 3. Trava de Segurança Final (Se tudo falhar em 8s, libera a aplicação)
+    authTimeout = setTimeout(() => {
+      if (mounted) {
+        setLoading(prev => {
+          if (prev) console.warn('[AuthContext] Timeout de segurança atingido. Liberando tela.');
+          return false;
+        });
+      }
+    }, 8000);
 
     return () => {
-        mounted = false;
-        isInitializedRef.current = false; // Limpa para o próximo mount
-        subscription.unsubscribe();
-        clearTimeout(timeoutId);
+      mounted = false;
+      subscription.unsubscribe();
+      clearTimeout(authTimeout);
     };
   }, []);
 
