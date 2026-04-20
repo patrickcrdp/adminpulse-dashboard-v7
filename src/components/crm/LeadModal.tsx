@@ -14,12 +14,12 @@ interface LeadModalProps {
   onClose: () => void;
   onUpdate: (lead: Lead) => void;
   onDelete?: (id: string) => void;
-  initialTab?: 'details' | 'activity';
+  initialTab?: 'details' | 'activity' | 'chat';
 }
 
 export const LeadModal: React.FC<LeadModalProps> = ({ lead, onClose, onUpdate, onDelete, initialTab = 'details' }) => {
   const { organization } = useAuth();
-  const [activeTab, setActiveTab] = useState<'details' | 'activity'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'details' | 'activity' | 'chat'>(initialTab);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [newNote, setNewNote] = useState('');
   const [activityType, setActivityType] = useState<'note' | 'call' | 'whatsapp' | 'meeting'>('note');
@@ -29,9 +29,18 @@ export const LeadModal: React.FC<LeadModalProps> = ({ lead, onClose, onUpdate, o
   const [deleteConfirmation, setDeleteConfirmation] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  // Chat State
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [myTicketId, setMyTicketId] = useState<string | null>(null);
+  const [chatInput, setChatInput] = useState('');
+  const [sendingChat, setSendingChat] = useState(false);
+  const chatEndRef = React.useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (activeTab === 'activity') {
       fetchActivities();
+    } else if (activeTab === 'chat' && lead.phone) {
+      fetchChatSession();
     }
   }, [activeTab, lead.id]);
 
@@ -47,6 +56,56 @@ export const LeadModal: React.FC<LeadModalProps> = ({ lead, onClose, onUpdate, o
       setActivities(data as Activity[]);
     }
     setLoadingActivities(false);
+  };
+
+  const fetchChatSession = async () => {
+    // 1. Achar o ticket daquele telefone
+    const { data: ticketData } = await supabase
+      .from('tickets')
+      .select('id')
+      .eq('organization_id', organization?.id)
+      .eq('contact_phone', lead.phone)
+      .single();
+
+    if (ticketData?.id) {
+       setMyTicketId(ticketData.id);
+       // 2. Achar as mensagens desse ticket
+       const { data: msgs } = await supabase
+           .from('messages')
+           .select('*')
+           .eq('ticket_id', ticketData.id)
+           .order('created_at', { ascending: true });
+       if (msgs) setChatMessages(msgs);
+       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    }
+  };
+
+  const handleSendChat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim() || !myTicketId || !organization?.id) return;
+    setSendingChat(true);
+
+    try {
+        const payload = { ticketId: myTicketId, organizationId: organization.id, textBody: chatInput };
+        const response = await supabase.functions.invoke('whatsapp-send', { body: payload });
+        
+        if (response.error) throw response.error;
+        
+        setChatMessages([...chatMessages, {
+            id: `temp-${Date.now()}`,
+            body: chatInput,
+            is_from_me: true,
+            status: 'sent',
+            created_at: new Date().toISOString()
+        }]);
+        setChatInput('');
+        setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    } catch (err) {
+        console.error("Erro enviando:", err);
+        alert("Erro ao enviar mensagem.");
+    } finally {
+        setSendingChat(false);
+    }
   };
 
   const handleAddActivity = async (e: React.FormEvent) => {
@@ -85,6 +144,24 @@ export const LeadModal: React.FC<LeadModalProps> = ({ lead, onClose, onUpdate, o
 
     if (!error) {
       onUpdate({ ...lead, status: newStatus });
+    }
+  };
+
+  const [leadValue, setLeadValue] = useState<string>(lead.value ? lead.value.toString() : '');
+  
+  const handleValueBlur = async () => {
+    const parsedValue = parseFloat(leadValue.replace(',', '.'));
+    const finalVal = isNaN(parsedValue) ? 0 : parsedValue;
+    
+    if (finalVal !== lead.value) {
+        const { error } = await supabase
+          .from('leads')
+          .update({ value: finalVal })
+          .eq('id', lead.id);
+          
+        if (!error) {
+            onUpdate({ ...lead, value: finalVal });
+        }
     }
   };
 
@@ -129,21 +206,47 @@ export const LeadModal: React.FC<LeadModalProps> = ({ lead, onClose, onUpdate, o
               <span className="text-xs text-slate-500">Adicionado em {new Date(lead.created_at).toLocaleDateString()}</span>
             </div>
 
-            <div className="space-y-2 mb-6">
-              <select
-                value={lead.status}
-                onChange={(e) => updateStatus(e.target.value as any)}
-                className="w-full bg-dark-card border border-dark-border text-white text-sm rounded-lg p-2.5 focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value="new">Novo Lead</option>
-                <option value="contacted">Em Contato</option>
-                <option value="qualified">Qualificado</option>
-                <option value="converted">Convertido</option>
-                <option value="lost">Perdido</option>
-                <option value="archived">Arquivado</option>
-              </select>
-            </div>
-          </div>
+              <div className="space-y-1">
+                 <label className="text-xs text-slate-400 font-semibold uppercase">Status do Lead</label>
+                 <select
+                   value={lead.status}
+                   onChange={(e) => updateStatus(e.target.value as any)}
+                   className="w-full bg-dark-card border border-dark-border text-white text-sm rounded-lg p-2.5 focus:ring-primary-500 focus:border-primary-500"
+                 >
+                   <option value="new">Novo Lead</option>
+                   <option value="contacted">Em Contato</option>
+                   <option value="qualified">Qualificado</option>
+                   <option value="converted">Convertido</option>
+                   <option value="lost">Perdido</option>
+                   <option value="archived">Arquivado</option>
+                 </select>
+              </div>
+
+               <div className="space-y-1 mt-3">
+                 <label className="text-xs text-slate-400 font-semibold uppercase">Valor do Negócio</label>
+                 <div className="flex items-center gap-2">
+                     <div className="relative flex-1">
+                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500 font-bold text-sm">R$</span>
+                         <input
+                           type="number"
+                           step="0.01"
+                           value={leadValue}
+                           onChange={(e) => setLeadValue(e.target.value)}
+                           onKeyDown={(e) => e.key === 'Enter' && handleValueBlur()}
+                           placeholder="0.00"
+                           className="w-full bg-dark-card border border-dark-border text-white text-sm rounded-lg py-2.5 pl-9 pr-3 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-colors"
+                         />
+                     </div>
+                     <button
+                        onClick={handleValueBlur}
+                        className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white border border-emerald-500/20 px-3 py-2.5 rounded-lg transition-colors flex items-center justify-center font-medium text-xs uppercase"
+                        title="Injetar Valor"
+                     >
+                        Aplicar
+                     </button>
+                 </div>
+              </div>
+              </div>
 
           <div className="space-y-4 text-sm overflow-y-auto flex-1">
             <div className="flex items-center space-x-3 text-slate-300 p-2 hover:bg-dark-card rounded-lg transition-colors">
@@ -215,12 +318,21 @@ export const LeadModal: React.FC<LeadModalProps> = ({ lead, onClose, onUpdate, o
               </button>
               <button
                 onClick={() => setActiveTab('activity')}
-                className={`text-sm font-medium pb-1 border-b-2 transition-colors ${activeTab === 'activity'
+                className={`text-sm font-medium pb-1 border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'activity'
                   ? 'border-primary-500 text-white'
                   : 'border-transparent text-slate-400 hover:text-white'
                   }`}
               >
-                Linha do Tempo
+                <FileText size={14} /> Linha do Tempo
+              </button>
+              <button
+                onClick={() => setActiveTab('chat')}
+                className={`text-sm font-medium pb-1 border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'chat'
+                  ? 'border-emerald-500 text-emerald-400'
+                  : 'border-transparent text-emerald-500/50 hover:text-emerald-400'
+                  }`}
+              >
+                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WA" className="w-4 h-4 opacity-80" /> WhatsApp
               </button>
             </div>
             <button onClick={onClose} className="text-slate-400 hover:text-white">
@@ -228,15 +340,59 @@ export const LeadModal: React.FC<LeadModalProps> = ({ lead, onClose, onUpdate, o
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6 bg-dark-bg/20">
+          <div className="flex-1 overflow-y-auto bg-dark-bg/20 relative custom-scrollbar">
             {activeTab === 'details' ? (
-              <div className="text-center text-slate-500 mt-10">
+              <div className="text-center text-slate-500 mt-10 p-6">
                 <User size={48} className="mx-auto mb-4 opacity-20" />
                 <p>Campos personalizados adicionais e detalhes estendidos iriam aqui.</p>
                 <p className="text-sm mt-2">Mude para <b>Linha do Tempo</b> para gerenciar tarefas.</p>
               </div>
+            ) : activeTab === 'chat' ? (
+              <div className="flex flex-col h-full absolute inset-0">
+                  {/* Chat Messages Area */}
+                  <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-[url('https://web.whatsapp.com/img/bg-chat-tile-dark_a4be512e7195b6b733d9110b408f075d.png')] bg-repeat opacity-95">
+                      {chatMessages.length === 0 ? (
+                          <div className="text-center text-slate-500 bg-black/40 p-4 rounded-xl mx-auto w-3/4 backdrop-blur-sm">
+                              Este lead ainda não possui um histórico de conversas mapeado ou o número não bate com o Inbox.
+                          </div>
+                      ) : (
+                          chatMessages.map(msg => (
+                              <div key={msg.id} className={`flex ${msg.is_from_me ? 'justify-end' : 'justify-start'}`}>
+                                  <div className={`max-w-[75%] px-4 py-2 text-sm shadow-sm ${msg.is_from_me ? 'bg-emerald-600/90 text-white rounded-l-2xl rounded-tr-2xl' : 'bg-dark-card border border-dark-border text-slate-200 rounded-r-2xl rounded-tl-2xl'}`}>
+                                      {msg.body}
+                                      <div className={`text-[10px] mt-1 text-right ${msg.is_from_me ? 'text-emerald-200' : 'text-slate-500'}`}>
+                                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                      </div>
+                                  </div>
+                              </div>
+                          ))
+                      )}
+                      <div ref={chatEndRef} />
+                  </div>
+
+                  {/* Chat Input Area */}
+                  <div className="p-4 bg-dark-card border-t border-dark-border">
+                      <form onSubmit={handleSendChat} className="flex gap-2 relative">
+                         <input 
+                             type="text" 
+                             value={chatInput}
+                             onChange={(e) => setChatInput(e.target.value)}
+                             disabled={!myTicketId || sendingChat}
+                             placeholder={myTicketId ? "Digite sua mensagem..." : "Lead sem ticket vinculado"}
+                             className="flex-1 bg-dark-bg border border-dark-border rounded-full pl-6 pr-12 py-3 text-sm text-white focus:border-emerald-500 outline-none disabled:opacity-50"
+                         />
+                         <button 
+                             type="submit" 
+                             disabled={!chatInput.trim() || !myTicketId || sendingChat}
+                             className="absolute right-2 top-2 w-8 h-8 flex items-center justify-center rounded-full bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 disabled:hover:bg-emerald-500 transition-colors"
+                         >
+                             <Send size={14} className="ml-0.5" />
+                         </button>
+                      </form>
+                  </div>
+              </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-6 p-6">
                 {/* Activity Input */}
                 <div className="bg-dark-card border border-dark-border rounded-xl p-4 shadow-sm">
                   <div className="flex gap-2 mb-3">

@@ -16,14 +16,21 @@ import {
   Settings,
   Building2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Target,
+  Megaphone,
+  PenTool,
+  Image as ImageIcon,
+  ChevronDown,
+  MessageSquare,
+  Zap,
+  Bot,
+  GitMerge
 } from 'lucide-react';
 import { FloatingGuideButton } from './FloatingGuideButton';
 import { OnboardingTour } from './OnboardingTour';
 import { AddMemberModal } from './AddMemberModal';
 import { NotificationBell } from './NotificationBell';
-import { Target, Megaphone, PenTool, Image as ImageIcon, ChevronDown, MessageSquare, Zap, Bot } from 'lucide-react';
-
 interface LayoutProps {
   children: React.ReactNode;
 }
@@ -61,6 +68,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       items: [
         { label: 'Chat Unificado', icon: <MessageSquare size={20} />, path: '/inbox' },
         { label: 'Integrações', icon: <Zap size={20} />, path: '/inbox/integrations' },
+        { label: 'Construtor Visual', icon: <GitMerge size={20} />, path: '/inbox/flow' },
         { label: 'Automação (IA)', icon: <Bot size={20} />, path: '/inbox/automation' },
       ]
     },

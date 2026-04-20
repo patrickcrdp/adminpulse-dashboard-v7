@@ -10,7 +10,12 @@ export const useInboxIntegrations = () => {
     const [error, setError] = useState<string | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedProvider, setSelectedProvider] = useState<any>(null);
-    const [formData, setFormData] = useState({ provider_id: '', access_token: '' });
+    const [formData, setFormData] = useState({ 
+        phone_number_id: '', 
+        waba_id: '',
+        access_token: '',
+        verify_token: 'AdminPulseV7OmnichannelSecurityToken'
+    });
 
     const fetchIntegrations = async () => {
         if (!organization?.id) return;
@@ -42,15 +47,18 @@ export const useInboxIntegrations = () => {
         try {
             await InboxFacade.saveIntegration({
                 organization_id: organization.id,
-                provider: selectedProvider.id,
-                provider_id: formData.provider_id,
+                name: `Canal ${selectedProvider.name}`,
+                provider: selectedProvider.id, // Fundamental para diferenciar WABA, IG ou Messenger
+                phone_number_id: formData.phone_number_id,
+                waba_id: formData.waba_id,
                 access_token: formData.access_token,
-                status: 'active'
+                verify_token: formData.verify_token || 'adminpulse_secure_token_v1',
+                status: 'CONNECTED'
             });
 
-            setSuccess(`Integração com ${selectedProvider.name} realizada com sucesso!`);
+            setSuccess(`Integração Oficial com ${selectedProvider.name} da Meta salva e roteada no banco de dados!`);
             setIsModalOpen(false);
-            setFormData({ provider_id: '', access_token: '' });
+            setFormData({ phone_number_id: '', waba_id: '', access_token: '', verify_token: 'adminpulse_secure_token_v1' });
             fetchIntegrations();
         } catch (err: any) {
             setError(err.message);

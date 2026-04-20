@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import {
     Search,
     Filter,
@@ -17,7 +18,8 @@ import {
     MoreHorizontal,
     Clock,
     CheckCircle2,
-    AlertCircle
+    AlertCircle,
+    Zap
 } from 'lucide-react';
 import { useUnifiedInbox } from '../../hooks/useUnifiedInbox';
 
@@ -36,6 +38,7 @@ export const UnifiedInbox: React.FC = () => {
         fetchMessages,
         handleSendMessage,
         handleClaimConvo,
+        handleResolveConvo,
         selectedConvo
     } = useUnifiedInbox();
     return (
@@ -93,7 +96,7 @@ export const UnifiedInbox: React.FC = () => {
                             {[
                                 { id: 'new', label: 'Entrada' },
                                 { id: 'in_progress', label: 'Abertos' },
-                                { id: 'closed', label: 'Vendas' }
+                                { id: 'closed', label: 'Realizados' }
                             ].map(tab => (
                                 <button
                                     key={tab.id}
@@ -125,11 +128,23 @@ export const UnifiedInbox: React.FC = () => {
                                 <span className="text-xs text-slate-500 uppercase tracking-widest font-bold">Carregando...</span>
                             </div>
                         ) : conversations.length === 0 ? (
-                            <div className="p-10 text-center space-y-3 opacity-50">
-                                <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center mx-auto text-slate-600">
-                                    <MessageSquare size={24} />
+                            <div className="p-8 text-center space-y-4">
+                                <div className="w-16 h-16 bg-primary-500/10 border border-primary-500/20 rounded-2xl flex items-center justify-center mx-auto text-primary-400">
+                                    <MessageSquare size={28} />
                                 </div>
-                                <p className="text-xs text-slate-500 uppercase tracking-widest font-bold">Nenhuma conversa</p>
+                                <div className="space-y-2">
+                                    <h3 className="text-sm font-bold text-white">Caixa de Entrada Vazia</h3>
+                                    <p className="text-[11px] text-slate-400 leading-relaxed font-medium px-2">
+                                        Ainda não temos mensagens. Coloque a URL Supabase na página de integrações (painel Meta).
+                                    </p>
+                                </div>
+                                <Link 
+                                    to="/inbox/integrations"
+                                    className="inline-flex items-center justify-center w-[80%] mx-auto py-2.5 px-4 bg-primary-500/10 hover:bg-primary-500/20 border border-primary-500/30 rounded-xl text-xs font-bold text-primary-400 transition-all gap-2 group"
+                                >
+                                    <Zap size={14} className="group-hover:scale-110 transition-transform" />
+                                    Ir para Integrações
+                                </Link>
                             </div>
                         ) : (
                             conversations.map(convo => (
@@ -216,6 +231,15 @@ export const UnifiedInbox: React.FC = () => {
                                         >
                                             <UserIcon size={14} />
                                             Assumir Atendimento
+                                        </button>
+                                    )}
+                                    {selectedConvo.status === 'in_progress' && (
+                                        <button
+                                            onClick={handleResolveConvo}
+                                            className="px-4 py-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold rounded-xl hover:bg-emerald-500 hover:text-white transition-all flex items-center gap-2"
+                                        >
+                                            <CheckCheck size={14} />
+                                            Finalizar Atendimento
                                         </button>
                                     )}
                                     <button className="p-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">

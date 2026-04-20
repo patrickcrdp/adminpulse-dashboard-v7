@@ -27,6 +27,12 @@ export const useUnifiedInbox = () => {
     const fetchConversations = async () => {
         if (!organization?.id) return;
         setLoading(true);
+
+        const timeout = setTimeout(() => {
+             console.log('[UnifiedInbox] Timeout Safety: Forçando destravamento de carregamento.');
+             setLoading(false);
+        }, 3000);
+
         try {
             const data = await InboxFacade.fetchConversations(organization.id, activeTab);
             setConversations(data as Conversation[]);
@@ -36,6 +42,7 @@ export const useUnifiedInbox = () => {
         } catch (error) {
             console.error('Error fetching conversations:', error);
         } finally {
+            clearTimeout(timeout);
             setLoading(false);
         }
     };
@@ -45,12 +52,21 @@ export const useUnifiedInbox = () => {
         
         const channel = supabase
             .channel('inbox_changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'inbox_conversations' }, () => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => {
                 fetchConversations();
             })
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'inbox_messages' }, (payload) => {
-                if (payload.new.conversation_id === selectedConvoId) {
-                    setMessages(prev => [...prev, payload.new]);
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+                if (payload.new.ticket_id === selectedConvoId) {
+                    // Mapeia o realtime payload para o formato esperado pelo chat (igual fizemos no InboxFacade.fetchMessages)
+                    const formattedMsg = {
+                        id: payload.new.id,
+                        conversation_id: payload.new.ticket_id,
+                        content: payload.new.body,
+                        is_from_customer: !payload.new.is_from_me,
+                        type: payload.new.message_type,
+                        created_at: payload.new.created_at
+                    };
+                    setMessages(prev => [...prev, formattedMsg]);
                 }
             })
             .subscribe();
@@ -84,11 +100,11 @@ export const useUnifiedInbox = () => {
 
         try {
             await InboxFacade.sendMessage({
-                conversation_id: selectedConvoId,
+                ticket_id: selectedConvoId,
                 organization_id: organization.id,
-                content: newMessage.trim(),
-                is_from_customer: false,
-                type: 'text'
+                body: newMessage.trim(),
+                is_from_me: true,
+                message_type: 'text'
             });
 
             setNewMessage('');
@@ -109,6 +125,17 @@ export const useUnifiedInbox = () => {
         }
     };
 
+    const handleResolveConvo = async () => {
+        if (!selectedConvoId) return;
+        try {
+            await InboxFacade.resolveConversation(selectedConvoId);
+            await fetchConversations();
+            setSelectedConvoId(null);
+        } catch (err) {
+            console.error('Erro ao finalizar atendimento:', err);
+        }
+    };
+
     const selectedConvo = conversations.find(c => c.id === selectedConvoId);
 
     return {
@@ -125,6 +152,7 @@ export const useUnifiedInbox = () => {
         fetchMessages,
         handleSendMessage,
         handleClaimConvo,
+        handleResolveConvo,
         selectedConvo
     };
 };

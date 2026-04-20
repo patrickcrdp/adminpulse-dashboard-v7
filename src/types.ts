@@ -36,6 +36,8 @@ export interface Lead {
   utm_campaign?: string;
   traffic_source?: string;
   pipeline_stage_id?: string;
+  value?: number;
+  tags?: string[];
 }
 
 export type ActivityType = 'call' | 'whatsapp' | 'meeting' | 'note' | 'appointment_created';

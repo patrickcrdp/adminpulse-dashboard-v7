@@ -39,6 +39,8 @@ const CalendarView = lazyRetry(() => import('./modules/calendar/components/Calen
 // Inbox Pages
 const UnifiedInbox = lazyRetry(() => import('./pages/inbox/UnifiedInbox').then(module => ({ default: module.UnifiedInbox })));
 const InboxIntegrations = lazyRetry(() => import('./pages/inbox/InboxIntegrations').then(module => ({ default: module.InboxIntegrations })));
+const InboxAutomation = lazyRetry(() => import('./pages/inbox/InboxAutomation').then(module => ({ default: module.InboxAutomation })));
+const FlowBuilder = lazyRetry(() => import('./pages/inbox/FlowBuilder').then(module => ({ default: module.FlowBuilder })));
 
 const App: React.FC = () => {
   return (
@@ -116,6 +118,18 @@ const App: React.FC = () => {
                 <Route path="/inbox/integrations" element={
                   <Layout>
                     <InboxIntegrations />
+                  </Layout>
+                } />
+
+                <Route path="/inbox/automation" element={
+                  <Layout>
+                    <InboxAutomation />
+                  </Layout>
+                } />
+                
+                <Route path="/inbox/flow" element={
+                  <Layout>
+                    <FlowBuilder />
                   </Layout>
                 } />
 
