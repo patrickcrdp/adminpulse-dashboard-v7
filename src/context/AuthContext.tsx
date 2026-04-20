@@ -129,16 +129,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let mounted = true;
+    isInitializedRef.current = false; // RESET no remount do StrictMode
     console.log('[AuthContext] Mounting AuthProvider...');
 
     const loadUserData = async (userId: string) => {
-      console.log('[AuthContext] Executing loadUserData for:', userId);
       try {
         await Promise.all([
           fetchProfile(userId),
           fetchUserOrganization(userId)
         ]);
-        console.log('[AuthContext] Background data fetch complete.');
       } catch (err: any) {
         if (err?.name === 'AbortError') return;
         console.error('[AuthContext] Error in background load:', err);
@@ -147,87 +146,68 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const processSession = (session: Session | null, source: string) => {
       if (!mounted) return;
-      console.log(`[AuthContext] Processing session from ${source}. User:`, session?.user?.id);
       
       isInitializedRef.current = true;
       setSession(session);
       setUser(session?.user ?? null);
-      
-      // SUPER OTIMIZAÇÃO: A tela é liberada IMEDIATAMENTE após receber a Sessão do Google,
-      // sem esperar as chamadas pesadas ao DB. Os dados fluem de forma assíncrona.
       setLoading(false);
       
       if (session?.user) {
         loadUserData(session.user.id);
-      } else {
-        console.log('[AuthContext] No user found.');
       }
     };
 
     // 1. Tenta pegar a sessão inicial
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (!mounted) return;
-      console.log('[AuthContext] getSession resolved. Error?', error);
       if (error) {
-        // Silenciar AbortError — é causado pelo React 18 StrictMode (mount/unmount/remount)
-        if ((error as any)?.name === 'AbortError' || error?.message?.includes('AbortError')) {
-          console.debug('[AuthContext] getSession abortado (esperado em dev/StrictMode).');
-          return;
+        if ((error as any)?.name === 'AbortError' || error?.message?.includes('AbortError') || error?.message?.includes('signal is aborted')) {
+          return; // Silenciar - é do StrictMode
         }
         console.error('Erro na sessão inicial:', error);
         if (mounted) setLoading(false);
         return;
       }
-      // Se onAuthStateChange já inicializou, não fazemos nada aqui
       if (!isInitializedRef.current) {
         processSession(session, 'getSession');
       }
     }).catch((err: any) => {
       if (!mounted) return;
-      if (err?.name === 'AbortError') {
-        console.debug('[AuthContext] getSession abortado (cleanup/StrictMode).');
-        return;
-      }
+      if (err?.name === 'AbortError' || err?.message?.includes('signal is aborted')) return;
       console.error('Falha crítica ao obter sessão:', err);
       if (mounted) setLoading(false);
     });
 
-    // 2. Escuta mudanças de estado (isso frequentemente resolve ANTES do getSession no OAuth)
+    // 2. Escuta mudanças de estado
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('[AuthContext] onAuthStateChange event:', event, 'User:', session?.user?.id);
       if (!mounted) return;
       
       if (!isInitializedRef.current) {
-        // Inicializa através do listener se ele responder mais rápido que o getSession
         processSession(session, 'onAuthStateChange');
       } else {
-        // Atualizações normais pós-inicialização
+        // Atualizações pós-inicialização
         setSession(session);
         setUser(session?.user ?? null);
+        setLoading(false); // SEMPRE liberar loading aqui também
         if (session?.user) {
           loadUserData(session.user.id);
         } else {
           setProfile(null);
           setOrganization(null);
-          setLoading(false);
         }
       }
     });
 
-    // 3. Timeout Safety robusto complementar (desbloqueia se o Supabase morrer sumariamente)
+    // 3. Timeout Safety (10s - margem generosa para conexões lentas)
     const timeoutId = setTimeout(() => {
         if (mounted) {
-            setLoading(prev => {
-                if (prev) {
-                    console.warn('[System] Timeout global disparado! Tela destravada de forma forçada.');
-                }
-                return false; // Sempre limpa o loading após 6s
-            });
+            setLoading(false);
         }
-    }, 6000);
+    }, 10000);
 
     return () => {
         mounted = false;
+        isInitializedRef.current = false; // Limpa para o próximo mount
         subscription.unsubscribe();
         clearTimeout(timeoutId);
     };
